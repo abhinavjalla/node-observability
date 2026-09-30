@@ -1,0 +1,17 @@
+loki.write "local" {
+  endpoint {
+    url = "http://host.docker.internal:3100/loki/api/v1/push"
+  }
+}
+
+loki.source.file "node_logs" {
+  targets = [
+    {
+      __path__ = "/var/log/node-observability/app.log",
+      service = "user-service",
+      environment = "development",
+    },
+  ]
+
+  forward_to = [loki.write.local.receiver]
+}
