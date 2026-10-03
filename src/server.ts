@@ -1,5 +1,7 @@
 import express from "express";
 import { createRequire } from "node:module";
+import { faker } from "@faker-js/faker";
+import { SpanStatusCode } from "@opentelemetry/api";
 
 import { logger } from "./logger.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
@@ -44,16 +46,57 @@ app.get("/users/:id", async (req, res) => {
   console.log("Span created:", span.spanContext());
 
   try {
-    const userId = req.params.id;
+    const userId = Number(req.params.id);
 
     span.setAttribute("user.id", userId);
 
-    req.log.info("Fetching user");
+    // Intentionally fail users with IDs between 30 and 50
+    if (userId >= 30 && userId <= 50) {
+      span.setAttribute("error", true);
+      span.setAttribute("error.type", "INVALID_USER_ID");
 
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: "Invalid user ID",
+      });
+
+      req.log.error(
+        {
+          userId,
+          statusCode: 400,
+        },
+        "Invalid user ID"
+      );
+
+      return res.status(400).json({
+        error: "Invalid user ID",
+        id: userId,
+      });
+    }
+
+    // Generate random user data
+    const name = faker.person.fullName();
+
+    const email = faker.internet.email({
+      firstName: name.split(" ")[0],
+      lastName: name.split(" ").slice(1).join(" "),
+    });
+
+    // Application log
+    req.log.info(
+      {
+        userId,
+        userName: name,
+        userEmail: email,
+      },
+      "Fetching user"
+    );
+
+    // Successful response
     res.json({
       id: userId,
-      name: "John",
-      email: "john@example.com",
+      name,
+      email,
     });
   } finally {
     span.end();
