@@ -1,17 +1,27 @@
-loki.write "local" {
-  endpoint {
-    url = "http://host.docker.internal:3100/loki/api/v1/push"
-  }
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
 }
 
-loki.source.file "node_logs" {
-  targets = [
-    {
-      __path__ = "/var/log/node-observability/app.log",
-      service = "user-service",
+loki.source.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.containers.receiver]
+}
+
+loki.process "containers" {
+  stage.static_labels {
+    values = {
+      service_name = "node-observability",
       environment = "development",
-    },
-  ]
+    }
+  }
 
   forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
 }
