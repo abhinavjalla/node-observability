@@ -103,6 +103,47 @@ app.get("/users/:id", async (req, res) => {
   }
 });
 
+
+app.get("/create-order", async (req, res) => {
+  try {
+    const response = await fetch(
+      "http://node-payments:4000/payment-confirmation"
+    );
+
+    if (!response.ok) {
+      req.log.error(
+        {
+          statusCode: response.status
+        },
+        "Payment confirmation failed"
+      );
+
+      return res.status(502).json({
+        error: "Payment service failed"
+      });
+    }
+
+    const paymentConfirmation = await response.json();
+
+    res.status(200).json({
+      orderId: "ORD-12345",
+      status: "CREATED",
+      payment: paymentConfirmation
+    });
+  } catch (error) {
+    req.log.error(
+      {
+        error
+      },
+      "Failed to communicate with payment service"
+    );
+
+    res.status(503).json({
+      error: "Payment service unavailable"
+    });
+  }
+});
+
 // Prometheus metrics endpoint
 app.get("/metrics", async (req, res) => {
   res.set("Content-Type", register.contentType);

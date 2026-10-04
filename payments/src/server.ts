@@ -59,6 +59,28 @@ app.get("/db-time", async (req, res) => {
   }
 });
 
+app.get("/payment-confirmation", async (req, res) => {
+  const delaySeconds = Math.floor(Math.random() * 10) + 1;
+  const delayMs = delaySeconds * 1000;
+
+  req.log.info(
+    {
+      delaySeconds
+    },
+    "Processing payment confirmation"
+  );
+
+  await new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+
+  res.json({
+    status: "CONFIRMED",
+    paymentId: "PAY-12345",
+    delaySeconds
+  });
+});
+
 // Prometheus metrics endpoint
 app.get("/metrics", async (req, res) => {
   res.set("Content-Type", register.contentType);
