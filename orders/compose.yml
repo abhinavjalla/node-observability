@@ -1,5 +1,4 @@
 services:
-
   orders:
     build:
       context: ..
@@ -14,11 +13,14 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
+    labels:
+      observability.service_name: "node-orders"
+      observability.environment: "development"
+
     networks:
       - observability-network
 
     restart: unless-stopped
-
 
 networks:
   observability-network:

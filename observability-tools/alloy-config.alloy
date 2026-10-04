@@ -1,21 +1,31 @@
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
+
+  refresh_interval = "5s"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = [
+      "__meta_docker_container_label_observability_service_name",
+    ]
+    target_label = "service_name"
+  }
+
+  rule {
+    source_labels = [
+      "__meta_docker_container_label_observability_environment",
+    ]
+    target_label = "environment"
+  }
 }
 
 loki.source.docker "containers" {
   host = "unix:///var/run/docker.sock"
 
-  targets    = discovery.docker.containers.targets
-  forward_to = [loki.process.containers.receiver]
-}
-
-loki.process "containers" {
-  stage.static_labels {
-    values = {
-      service_name = "node-observability",
-      environment = "development",
-    }
-  }
+  targets = discovery.relabel.containers.output
 
   forward_to = [loki.write.local.receiver]
 }
