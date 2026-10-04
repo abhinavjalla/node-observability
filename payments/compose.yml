@@ -1,0 +1,27 @@
+services:
+  orders:
+    build:
+      context: ..
+      dockerfile: payments/Dockerfile
+
+    image: node-payments:1.0
+    container_name: node-payments
+
+    ports:
+      - "4002:4000"
+
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+
+    labels:
+      observability.service_name: "node-payments"
+      observability.environment: "development"
+
+    networks:
+      - observability-network
+
+    restart: unless-stopped
+
+networks:
+  observability-network:
+    external: true
