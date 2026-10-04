@@ -57,7 +57,7 @@ app.get("/users/:id", async (req, res) => {
         code: SpanStatusCode.ERROR,
         message: "Invalid user ID",
       });
-
+      // @ts-ignore
       req.log.error(
         {
           userId,

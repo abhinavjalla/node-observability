@@ -1,15 +1,15 @@
 services:
 
-  node-observability:
+  orders:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: orders/Dockerfile
 
-    image: orders-image:1.0
-    container_name: orders-container
+    image: node-orders:1.0
+    container_name: node-orders
 
     ports:
-      - "3000:3000"
+      - "3002:3000"
 
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318

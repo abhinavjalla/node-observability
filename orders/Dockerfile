@@ -11,7 +11,7 @@ COPY package.json package-lock.json ./
 # Workspace package manifests
 COPY reusable/package.json ./reusable/package.json
 COPY orders/package.json ./orders/package.json
-COPY payments/package.json ./payments/package.json
+
 
 # Install dependencies
 RUN npm ci
@@ -38,7 +38,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY reusable/package.json ./reusable/package.json
 COPY orders/package.json ./orders/package.json
-COPY payments/package.json ./payments/package.json
+
 
 # Production dependencies only
 RUN npm ci --omit=dev
