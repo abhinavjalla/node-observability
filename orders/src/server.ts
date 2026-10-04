@@ -3,15 +3,17 @@ import { createRequire } from "node:module";
 import { faker } from "@faker-js/faker";
 import { SpanStatusCode } from "@opentelemetry/api";
 
-import { logger } from "./logger.js";
-import { requestIdMiddleware } from "./middleware/request-id.js";
-import { metricsMiddleware } from "./middleware/metrics.js";
-import { register } from "./metrics/metrics.js";
-import { tracer } from "./tracing.js";
+import {
+  logger,
+  requestIdMiddleware,
+  metricsMiddleware,
+  register,
+  tracer,
+  httpLoggerMiddleware
+} from "@node-observability/reusable";
 
 const require = createRequire(import.meta.url);
 
-const pinoHttp = require("pino-http");
 
 const app = express();
 
@@ -21,11 +23,7 @@ app.use(express.json());
 app.use(requestIdMiddleware);
 
 // HTTP logging
-app.use(
-  pinoHttp({
-    logger,
-  })
-);
+app.use(httpLoggerMiddleware);
 
 // Prometheus metrics
 app.use(metricsMiddleware);

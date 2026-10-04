@@ -1,0 +1,25 @@
+services:
+
+  node-observability:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: orders-image:1.0
+    container_name: orders-container
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+
+    networks:
+      - observability-network
+
+    restart: unless-stopped
+
+
+networks:
+  observability-network:
+    external: true
