@@ -1,81 +1,104 @@
 # Node.js Observability Platform
 
-A Node.js/TypeScript monorepo demonstrating **production-oriented observability** for multiple services using:
+A Node.js/TypeScript monorepo demonstrating **end-to-end observability for distributed services**.
 
-- OpenTelemetry
-- Prometheus
-- Grafana
-- Loki
-- Grafana Alloy
-- Jaeger
-- Pino
-- PostgreSQL
+The project focuses on how application telemetry is generated, collected, transported, stored, queried, visualized, and correlated across multiple services.
 
-The project demonstrates how **metrics, logs, and distributed traces** can be collected and correlated across multiple Node.js services.
+The observability stack includes:
 
----
+- **OpenTelemetry** — instrumentation and telemetry generation
+- **OpenTelemetry Collector** — telemetry processing and routing
+- **Grafana Alloy** — telemetry collection and forwarding
+- **Prometheus** — metrics storage and querying
+- **Loki** — log aggregation and querying
+- **Jaeger** — distributed tracing
+- **Grafana** — visualization and observability investigation
+- **Pino** — structured application logging
 
-## Architecture
+The application consists of multiple Node.js services such as:
 
-```text
-                         ┌──────────────────────┐
-                         │      Grafana          │
-                         │      :3001            │
-                         └──────────┬───────────┘
-                                    │
-                 ┌──────────────────┼──────────────────┐
-                 │                  │                  │
-                 ▼                  ▼                  ▼
-            Prometheus            Loki              Jaeger
-              :9090              :3100              :16686
-                 ▲                  ▲                  ▲
-                 │                  │                  │
-                 │               Alloy                │
-                 │              :12345                 │
-                 │                  ▲                  │
-                 │                  │                  │
-                 └──────────┬───────┴───────┬──────────┘
-                            │               │
-                            ▼               ▼
-                    ┌─────────────┐  ┌─────────────┐
-                    │    Orders   │  │  Payments   │
-                    │    :5000    │  │    :4000    │
-                    └──────┬──────┘  └──────┬──────┘
-                           │                 │
-                           └────────┬────────┘
-                                    │
-                           OpenTelemetry
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │  OTEL Collector     │
-                         │      :4317/:4318    │
-                         └─────────────────────┘
-```
+- Orders
+- Payments
+- Reusable shared package
 
 ---
 
-# Observability Architecture
+# 1. Observability Architecture
 
-The project follows the three major pillars of observability:
+The overall architecture looks like this:
 
 ```text
-                 Observability
-                      │
-          ┌───────────┼───────────┐
-          │           │           │
-        Logs       Metrics      Traces
-          │           │           │
-         Loki      Prometheus    Jaeger
-          │           │           │
-          └───────────┼───────────┘
-                      │
-                   Grafana
+                         ┌───────────────────────┐
+                         │       Grafana         │
+                         │        :3001          │
+                         │                       │
+                         │  Dashboards / Explore│
+                         └───────────┬───────────┘
+                                     │
+                 ┌───────────────────┼───────────────────┐
+                 │                   │                   │
+                 ▼                   ▼                   ▼
+            Prometheus             Loki                Jaeger
+             Metrics               Logs                Traces
+                 ▲                   ▲                   ▲
+                 │                   │                   │
+                 │                   │                   │
+                 │              Grafana Alloy            │
+                 │                   ▲                   │
+                 │                   │                   │
+                 │                   │                   │
+                 └──────────┐        │        ┌──────────┘
+                            │        │        │
+                            ▼        ▼        ▼
+                    OpenTelemetry Collector
+                         :4317 / :4318
+                            ▲
+                            │
+                  OpenTelemetry SDK
+                            │
+             ┌──────────────┴──────────────┐
+             │                             │
+             ▼                             ▼
+        ┌──────────┐                  ┌──────────┐
+        │  Orders  │                  │ Payments │
+        │  :5000   │                  │  :4000   │
+        └──────────┘                  └──────────┘
+             │                             │
+             └──────────────┬──────────────┘
+                            │
+                            ▼
+                        PostgreSQL
 ```
 
-## 1. Logs
+The important concept is that **different observability tools have different responsibilities**.
 
-Application logs are generated using **Pino**.
+---
+
+# 2. What Is Observability?
+
+Observability helps answer:
+
+> **What is happening inside my application, and why?**
+
+The three primary pillars are:
+
+```text
+                    Observability
+                         │
+            ┌────────────┼────────────┐
+            │            │            │
+            ▼            ▼            ▼
+          Logs        Metrics       Traces
+            │            │            │
+            ▼            ▼            ▼
+          Loki       Prometheus     Jaeger
+```
+
+### Logs
+
+Tell us:
+
+> What happened?
 
 Example:
 
@@ -84,87 +107,45 @@ Example:
   "level": 30,
   "msg": "Order created",
   "traceId": "d63695cc92c8406f0205fe8d7aa467d4",
-  "spanId": "abc123",
   "method": "POST",
   "path": "/create-order"
 }
 ```
 
-Logs are collected by **Grafana Alloy** and forwarded to **Loki**.
+### Metrics
 
-Grafana can then be used to search logs by:
+Tell us:
 
-- service
-- HTTP method
-- endpoint
-- status code
-- trace ID
-- error
-- timestamp
+> How much? How often? How fast?
 
-Example Loki query:
-
-```logql
-{job=~".+"}
-|= "d63695cc92c8406f0205fe8d7aa467d4"
-```
-
----
-
-# 2. Metrics
-
-Application metrics are generated using OpenTelemetry/Prometheus-compatible instrumentation.
-
-Typical HTTP metrics include:
+Examples:
 
 ```text
-http_requests_total
-http_request_duration_seconds
-http_request_errors_total
+Request count
+Request rate
+Error rate
+CPU
+Memory
+Latency
+p50
+p95
+p99
 ```
 
-Metrics provide information such as:
+### Traces
 
-- request count
-- request rate
-- HTTP success rate
-- HTTP error rate
-- latency
-- p50 latency
-- p95 latency
-- p99 latency
+Tell us:
 
-Prometheus stores and queries these metrics.
+> Where did the request travel and where did it spend time?
 
 Example:
-
-```promql
-rate(http_requests_total[5m])
-```
-
-For an individual service:
-
-```promql
-rate(http_requests_total{service_name="orders"}[5m])
-```
-
----
-
-# 3. Distributed Tracing
-
-OpenTelemetry generates traces and spans for HTTP requests.
-
-For example:
 
 ```text
 Client
   │
-  │ POST /create-order
   ▼
 Orders
   │
-  │ HTTP request
-  │ traceId = d63695cc92c8406f0205fe8d7aa467d4
   ▼
 Payments
   │
@@ -172,222 +153,364 @@ Payments
 PostgreSQL
 ```
 
-The important concept is that the same:
+---
+
+# 3. OpenTelemetry
+
+OpenTelemetry is the instrumentation and telemetry standard used by the application.
+
+It can generate:
 
 ```text
-traceId
+Traces
+Metrics
+Logs
 ```
 
-can be propagated across service boundaries.
+In this project, OpenTelemetry is primarily responsible for:
+
+- HTTP instrumentation
+- Span creation
+- Trace context propagation
+- Metrics
+- Exporting telemetry
+
+For example, when a request arrives:
+
+```http
+POST /create-order
+```
+
+OpenTelemetry creates a trace/span context.
 
 Example:
+
+```text
+traceId = d63695cc92c8406f0205fe8d7aa467d4
+spanId  = abc123
+```
+
+When Orders calls Payments, the trace context is propagated.
 
 ```text
 Orders
 traceId = d63695cc92c8406f0205fe8d7aa467d4
-
         │
+        │ HTTP
         ▼
-
 Payments
 traceId = d63695cc92c8406f0205fe8d7aa467d4
 ```
 
-This allows a complete request to be investigated across services.
-
-Jaeger provides the trace visualization.
+This is what makes distributed tracing possible.
 
 ---
 
-# Monorepo Structure
+# 4. OpenTelemetry Collector
 
-The project uses an npm workspace-based monorepo.
+The OpenTelemetry Collector acts as a **telemetry processing and routing layer**.
+
+Instead of every application directly connecting to every observability backend:
 
 ```text
-node-observability/
-│
-├── package.json
-├── package-lock.json
-│
-├── reusable/
-│   ├── package.json
-│   ├── src/
-│   └── dist/
-│
-├── orders/
-│   ├── package.json
-│   ├── src/
-│   └── dist/
-│
-├── payments/
-│   ├── package.json
-│   ├── src/
-│   └── dist/
-│
-└── observability/
-    ├── prometheus/
-    ├── loki/
-    ├── alloy/
-    ├── otel-collector/
-    └── grafana/
+Orders ───────► Jaeger
+Orders ───────► Prometheus
+Orders ───────► Loki
+
+Payments ─────► Jaeger
+Payments ─────► Prometheus
+Payments ─────► Loki
 ```
 
-## Workspace Concept
+the architecture uses:
 
-The root `package.json` defines the workspaces:
+```text
+Orders ─────┐
+            │
+Payments ───┤
+            ▼
+     OTEL Collector
+            │
+      ┌─────┼─────┐
+      ▼     ▼     ▼
+   Jaeger Prometheus Loki
+```
+
+The Collector can perform:
+
+- Receiving telemetry
+- Processing telemetry
+- Batching
+- Filtering
+- Enrichment
+- Sampling
+- Exporting
+
+This provides a central telemetry pipeline.
+
+---
+
+# 5. Grafana Alloy
+
+Grafana Alloy is a **telemetry collector/agent** from Grafana.
+
+It is especially useful for collecting telemetry from infrastructure and applications and forwarding it to observability backends.
+
+In this project, Alloy is primarily involved in the **log collection pipeline**.
+
+The simplified flow is:
+
+```text
+Node.js Application
+        │
+        │ structured logs
+        ▼
+     Log source
+        │
+        ▼
+   Grafana Alloy
+        │
+        │
+        ▼
+       Loki
+        │
+        ▼
+     Grafana
+```
+
+Alloy can also collect and process other telemetry types depending on its configuration.
+
+### Why use Alloy?
+
+It provides a flexible telemetry agent that can:
+
+- Discover log sources
+- Collect logs
+- Add labels
+- Parse logs
+- Filter logs
+- Forward logs
+- Integrate with Grafana's observability ecosystem
+
+For example, an application may generate:
 
 ```json
 {
-  "workspaces": [
-    "reusable",
-    "orders",
-    "payments"
-  ]
+  "level": 30,
+  "service": "orders",
+  "traceId": "d63695cc92c8406f0205fe8d7aa467d4",
+  "method": "POST",
+  "path": "/create-order",
+  "statusCode": 201
 }
 ```
 
-This allows the services to share common code through the reusable workspace.
+Alloy can collect these logs and forward them to Loki.
 
-For example:
+---
+
+# 6. Alloy vs OpenTelemetry Collector
+
+These tools can look similar because both can collect and process telemetry.
+
+Their roles in this project are separated conceptually:
 
 ```text
-                 @node-observability/reusable
-                            │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-           Orders                      Payments
+                 Application
+                      │
+             OpenTelemetry SDK
+                      │
+                      ▼
+              OTEL Collector
+                      │
+                      ▼
+                   Traces
+                      │
+                      ▼
+                   Jaeger
+
+
+              Application logs
+                      │
+                      ▼
+                Grafana Alloy
+                      │
+                      ▼
+                    Loki
 ```
 
-Common observability functionality can live in the reusable package, such as:
+### OpenTelemetry Collector
 
-- Pino configuration
-- OpenTelemetry setup
-- request ID middleware
-- tracing utilities
-- metrics middleware
-- common logging utilities
-
-This avoids duplicating the same observability implementation in every service.
-
----
-
-# Prerequisites
-
-Install:
-
-- Node.js 24+
-- npm
-- Git
-
-The observability stack requires the corresponding local container runtime.
-
----
-
-# Install Dependencies
-
-From the repository root:
-
-```bash
-npm ci
-```
-
-Because this is an npm workspace monorepo, dependencies for the workspaces are installed from the root.
-
----
-
-# Build the Project
-
-Build the reusable package first:
-
-```bash
-npm run build --workspace=@node-observability/reusable
-```
-
-Build Orders:
-
-```bash
-npm run build --workspace=orders
-```
-
-Build Payments:
-
-```bash
-npm run build --workspace=payments
-```
-
-Or, if the root project provides a build script:
-
-```bash
-npm run build
-```
-
----
-
-# Running the Services
-
-## Orders
-
-Orders runs on:
+Primarily used here for:
 
 ```text
-http://localhost:5002
+Application telemetry
+        │
+        ▼
+OTLP
+        │
+        ▼
+OTEL Collector
+        │
+        ▼
+Telemetry backends
 ```
+
+### Alloy
+
+Primarily used here for:
+
+```text
+Application / system logs
+        │
+        ▼
+      Alloy
+        │
+        ▼
+      Loki
+```
+
+Both are capable of broader telemetry pipelines, but separating responsibilities makes the architecture easier to understand.
+
+---
+
+# 7. Prometheus
+
+Prometheus is the **metrics monitoring and time-series database** in this architecture.
+
+It stores numerical measurements over time.
+
+Examples:
+
+```text
+http_requests_total
+http_request_duration_seconds
+http_request_errors_total
+```
+
+A request:
+
+```http
+POST /create-order
+```
+
+might produce:
+
+```text
+http_requests_total{service="orders",route="/create-order"} 150
+```
+
+Prometheus allows us to query these metrics using **PromQL**.
 
 Example:
 
-```http
-POST http://localhost:5002/create-order
+```promql
+rate(http_requests_total[5m])
 ```
 
-Example request:
+This answers:
+
+> What is the request rate during the last five minutes?
+
+---
+
+# 8. What Prometheus Does NOT Do
+
+Prometheus does not primarily store application logs.
+
+It stores metrics.
+
+```text
+Logs       → Loki
+Metrics    → Prometheus
+Traces     → Jaeger
+```
+
+This separation is important.
+
+---
+
+# 9. Loki
+
+Loki is the **log aggregation system**.
+
+Applications generate structured logs using Pino.
+
+Example:
 
 ```json
 {
-  "productId": 10,
-  "quantity": 2,
-  "userId": 1001
+  "level": 30,
+  "service": "orders",
+  "traceId": "d63695cc92c8406f0205fe8d7aa467d4",
+  "method": "POST",
+  "path": "/create-order",
+  "statusCode": 201
 }
 ```
 
----
+Alloy collects the logs and sends them to Loki.
 
-## Payments
+Grafana can then query Loki using **LogQL**.
 
-Payments runs on:
+Example:
 
-```text
-http://localhost:4002
+```logql
+{job=~".+"} |= "/create-order"
 ```
 
----
+Search using trace ID:
 
-# Running the Observability Stack
-
-Start the observability infrastructure from the project's compose configuration.
-
-After startup, verify the running components.
-
-The main observability endpoints are:
-
-| Tool | URL | Purpose |
-|---|---|---|
-| Grafana | http://localhost:3001 | Visualization |
-| Prometheus | http://localhost:9090 | Metrics |
-| Jaeger | http://localhost:16686 | Distributed traces |
-| Loki | http://localhost:3100 | Logs |
-| Alloy | http://localhost:12345 | Telemetry collection |
-
----
-
-# Grafana
-
-Open:
-
-```text
-http://localhost:3001
+```logql
+{job=~".+"} |= "d63695cc92c8406f0205fe8d7aa467d4"
 ```
 
-Grafana is the main visualization and investigation interface.
+This is extremely useful when investigating a distributed request.
+
+---
+
+# 10. Jaeger
+
+Jaeger is the **distributed tracing backend**.
+
+It stores and visualizes:
+
+```text
+Traces
+Spans
+Span relationships
+Service dependencies
+Latency
+```
+
+Example trace:
+
+```text
+Trace ID:
+d63695cc92c8406f0205fe8d7aa467d4
+
+Orders
+│
+├── POST /create-order
+│
+└── Payments
+     │
+     └── POST /payment
+```
+
+The trace allows us to identify:
+
+- Which service was slow
+- Which operation failed
+- How long each operation took
+- Which service called another service
+- Where an error originated
+
+---
+
+# 11. Grafana
+
+Grafana is the **central visualization and investigation layer**.
 
 It can connect to:
 
@@ -397,41 +520,408 @@ Loki
 Jaeger
 ```
 
-This allows metrics, logs, and traces to be investigated from a common interface.
+This allows engineers to investigate the same application from different perspectives.
+
+```text
+                   Grafana
+                      │
+       ┌──────────────┼──────────────┐
+       │              │              │
+       ▼              ▼              ▼
+   Prometheus       Loki           Jaeger
+    Metrics         Logs           Traces
+```
+
+Grafana provides:
+
+- Dashboards
+- Metrics visualization
+- Log search
+- Trace exploration
+- Alerts
+- Correlation between telemetry types
 
 ---
 
-# Prometheus
+# 12. End-to-End Request Flow
 
-Open:
+Consider:
+
+```http
+POST /create-order
+```
+
+The complete flow is:
+
+```text
+                         Client
+                           │
+                           │ POST /create-order
+                           ▼
+                     ┌───────────┐
+                     │  Orders   │
+                     └─────┬─────┘
+                           │
+                 traceId = ABC123
+                           │
+                           ▼
+                     ┌───────────┐
+                     │ Payments  │
+                     └─────┬─────┘
+                           │
+                           ▼
+                       PostgreSQL
+```
+
+At the same time, telemetry is generated.
+
+### Logs
+
+```text
+Orders ──► Alloy ──► Loki
+Payments ─► Alloy ──► Loki
+```
+
+### Metrics
+
+```text
+Orders
+  │
+  ▼
+OpenTelemetry
+  │
+  ▼
+OTEL Collector
+  │
+  ▼
+Prometheus
+```
+
+### Traces
+
+```text
+Orders
+  │
+  ▼
+OpenTelemetry
+  │
+  ▼
+OTEL Collector
+  │
+  ▼
+Jaeger
+```
+
+Grafana brings these views together.
+
+---
+
+# 13. Trace ID Correlation
+
+One of the most important concepts demonstrated by this project is **trace correlation**.
+
+Suppose a request starts with:
+
+```text
+traceId =
+d63695cc92c8406f0205fe8d7aa467d4
+```
+
+Orders creates the request:
+
+```text
+Orders
+POST /create-order
+traceId=d63695cc92c8406f0205fe8d7aa467d4
+```
+
+Orders calls Payments:
+
+```text
+Payments
+POST /payment
+traceId=d63695cc92c8406f0205fe8d7aa467d4
+```
+
+Now the same trace ID can be searched in Loki:
+
+```logql
+{job=~".+"} |= "d63695cc92c8406f0205fe8d7aa467d4"
+```
+
+And the same trace can be opened in Jaeger.
+
+This creates a connection between:
+
+```text
+HTTP request
+      │
+      ├── Logs
+      │
+      ├── Metrics
+      │
+      └── Trace
+```
+
+---
+
+# 14. Observability Investigation Example
+
+Suppose users report:
+
+> Create order is slow.
+
+Start with metrics.
+
+### Step 1 — Metrics
+
+Prometheus shows:
+
+```text
+p95 latency = 2.8 seconds
+```
+
+Now we know there is a latency problem.
+
+### Step 2 — Logs
+
+Search Loki:
+
+```logql
+{job=~".+"} |= "/create-order"
+```
+
+Find:
+
+```text
+traceId=d63695cc92c8406f0205fe8d7aa467d4
+```
+
+### Step 3 — Trace
+
+Search the trace in Jaeger.
+
+You may find:
+
+```text
+Orders                150 ms
+   │
+   └── Payments       2,400 ms
+          │
+          └── Database 2,300 ms
+```
+
+Now the problem becomes clear:
+
+```text
+Create Order
+     │
+     ▼
+   Orders
+     │
+     ▼
+ Payments
+     │
+     ▼
+ PostgreSQL
+     │
+     └── Slow database operation
+```
+
+This is the value of combining logs, metrics, and traces.
+
+---
+
+# 15. Monorepo Structure
+
+The application is maintained as an npm workspace monorepo.
+
+```text
+node-observability/
+│
+├── package.json
+├── package-lock.json
+│
+├── reusable/
+│   ├── package.json
+│   └── src/
+│
+├── orders/
+│   ├── package.json
+│   └── src/
+│
+├── payments/
+│   ├── package.json
+│   └── src/
+│
+└── observability/
+    ├── alloy/
+    ├── loki/
+    ├── prometheus/
+    └── otel-collector/
+```
+
+The reusable workspace contains common functionality shared by the services.
+
+For example:
+
+```text
+@node-observability/reusable
+          │
+          ├── Logging
+          ├── OpenTelemetry
+          ├── Metrics
+          ├── Middleware
+          └── Trace utilities
+                    │
+             ┌──────┴──────┐
+             ▼             ▼
+          Orders        Payments
+```
+
+This prevents duplication of common observability code.
+
+---
+
+# 16. Running the Project
+
+## Install dependencies
+
+From the repository root:
+
+```bash
+npm ci
+```
+
+## Build reusable package
+
+```bash
+npm run build --workspace=@node-observability/reusable
+```
+
+## Build Orders
+
+```bash
+npm run build --workspace=orders
+```
+
+## Build Payments
+
+```bash
+npm run build --workspace=payments
+```
+
+---
+
+# 17. Start the Application and Observability Stack
+
+Start the project using the provided compose configuration.
+
+```bash
+docker compose up -d --build
+```
+
+Check running services:
+
+```bash
+docker ps
+```
+
+Stop the project:
+
+```bash
+docker compose down
+```
+
+---
+
+# 18. Application URLs
+
+Orders:
+
+```text
+http://localhost:5002
+```
+
+Payments:
+
+```text
+http://localhost:4002
+```
+
+Grafana:
+
+```text
+http://localhost:3001
+```
+
+Prometheus:
 
 ```text
 http://localhost:9090
 ```
 
-Prometheus stores application metrics.
+Jaeger:
 
-Example query:
+```text
+http://localhost:16686
+```
+
+Loki:
+
+```text
+http://localhost:3100
+```
+
+Alloy:
+
+```text
+http://localhost:12345
+```
+
+---
+
+# 19. Generate Test Traffic
+
+Example:
+
+```bash
+curl -X POST http://localhost:5002/create-order \
+  -H "Content-Type: application/json" \
+  -d '{"productId":10,"quantity":2,"userId":1001}'
+```
+
+This should generate:
+
+```text
+HTTP request
+      │
+      ├── Application logs
+      │
+      ├── Metrics
+      │
+      └── Distributed trace
+```
+
+---
+
+# 20. Useful Queries
+
+## Prometheus
+
+Request rate:
 
 ```promql
 rate(http_requests_total[5m])
 ```
 
-Orders:
+Orders request rate:
 
 ```promql
 rate(http_requests_total{service_name="orders"}[5m])
 ```
 
-HTTP error rate:
-
-```promql
-rate(http_request_errors_total[5m])
-```
-
-Latency can be analyzed using histogram metrics.
-
-Example:
+p95 latency:
 
 ```promql
 histogram_quantile(
@@ -440,320 +930,113 @@ histogram_quantile(
 )
 ```
 
-This represents approximately **p95 HTTP latency**.
-
 ---
 
-# Loki
+## Loki
 
-Loki stores application logs.
-
-Logs are collected by Grafana Alloy and sent to Loki.
-
-Example query:
+Search Orders:
 
 ```logql
-{job=~".+"}
+{job=~".+"} |= "orders"
 ```
 
-Search for an endpoint:
+Search endpoint:
 
 ```logql
 {job=~".+"} |= "/create-order"
 ```
 
-Search by trace ID:
+Search trace:
 
 ```logql
 {job=~".+"} |= "d63695cc92c8406f0205fe8d7aa467d4"
 ```
 
-This is particularly useful for following one request across multiple services.
+---
+
+# 21. Observability Components Summary
+
+| Component | Primary Responsibility |
+|---|---|
+| Pino | Structured application logging |
+| OpenTelemetry | Application instrumentation |
+| OTEL Collector | Receive/process/export telemetry |
+| Grafana Alloy | Collect/process/forward telemetry, especially logs |
+| Prometheus | Metrics storage and PromQL |
+| Loki | Log aggregation and LogQL |
+| Jaeger | Distributed tracing |
+| Grafana | Visualization and investigation |
 
 ---
 
-# Jaeger
+# 22. Complete Telemetry Pipeline
 
-Open:
-
-```text
-http://localhost:16686
-```
-
-Jaeger provides distributed trace visualization.
-
-A trace can look like:
+The complete architecture can be summarized as:
 
 ```text
-Trace
-│
-├── Orders
-│    └── POST /create-order
-│
-├── Payments
-│    └── POST /payment
-│
-└── PostgreSQL
-     └── database operation
+                    NODE.JS SERVICES
+                  ┌───────────────────┐
+                  │                   │
+                  │ Orders            │
+                  │ Payments          │
+                  │                   │
+                  └─────────┬─────────┘
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+           Logs          Metrics         Traces
+             │              │              │
+             ▼              ▼              ▼
+           Pino       OpenTelemetry    OpenTelemetry
+             │              │              │
+             ▼              └──────┬───────┘
+      Grafana Alloy               │
+             │                    ▼
+             ▼             OTEL Collector
+           Loki                    │
+             │               ┌────┴─────┐
+             │               │          │
+             │               ▼          ▼
+             │            Jaeger    Prometheus
+             │               │          │
+             └───────────────┴────┬─────┘
+                                  │
+                                  ▼
+                               Grafana
 ```
 
-Each operation is represented as a span.
+The key idea is:
 
-The trace ID connects all spans belonging to the same distributed request.
+> **Applications generate telemetry, collectors transport and process it, specialized backends store it, and Grafana provides a unified investigation experience.**
 
 ---
 
-# Trace Correlation
+# 23. Learning Objectives
 
-One of the primary goals of this project is to correlate:
+This project is intended to provide practical understanding of:
 
-```text
-Logs
-  +
-Metrics
-  +
-Traces
-```
-
-using a common request context.
-
-For example:
-
-```text
-traceId:
-d63695cc92c8406f0205fe8d7aa467d4
-```
-
-The same trace ID can appear in:
-
-```text
-Orders logs
-Payments logs
-Jaeger trace
-```
-
-This makes it possible to start with an HTTP request and follow it through the entire system.
-
-Example investigation:
-
-```text
-POST /create-order
-        │
-        ▼
-     Orders
-        │
-        │ traceId
-        ▼
-    Payments
-        │
-        ▼
-   PostgreSQL
-```
-
-If the request is slow, the investigation can move from:
-
-```text
-Grafana
-   │
-   ├── Metrics → identify latency
-   │
-   ├── Loki → inspect application logs
-   │
-   └── Jaeger → identify slow span
-```
-
----
-
-# OpenTelemetry Collector
-
-The OpenTelemetry Collector acts as the telemetry pipeline between applications and observability backends.
-
-```text
-Orders ─────┐
-            │
-Payments ───┤
-            ▼
-     OpenTelemetry
-        Collector
-            │
-       ┌────┼────┐
-       ▼    ▼    ▼
-    Jaeger  ...  Metrics/Logs
-```
-
-The application does not need to know the details of every backend.
-
-Instead:
-
-```text
-Application
-     │
-     ▼
-OpenTelemetry Collector
-     │
-     ├── Traces → Jaeger
-     ├── Metrics → Prometheus
-     └── Logs → Loki/Alloy pipeline
-```
-
-This provides a cleaner and more flexible observability architecture.
-
----
-
-# Grafana Investigation Workflow
-
-A typical investigation starts with an HTTP request.
-
-### Step 1 — Generate traffic
-
-```http
-POST http://localhost:5002/create-order
-```
-
-### Step 2 — Check Metrics
-
-Open Grafana → Explore → Prometheus.
-
-Check:
-
-```promql
-rate(http_requests_total{service_name="orders"}[5m])
-```
-
-### Step 3 — Check Logs
-
-Open Grafana → Explore → Loki.
-
-Search:
-
-```logql
-{job=~".+"} |= "/create-order"
-```
-
-### Step 4 — Find Trace ID
-
-From the log:
-
-```text
-traceId=d63695cc92c8406f0205fe8d7aa467d4
-```
-
-Search Loki:
-
-```logql
-{job=~".+"} |= "d63695cc92c8406f0205fe8d7aa467d4"
-```
-
-### Step 5 — Open the Trace
-
-Use the trace ID in Jaeger/Grafana to inspect:
-
-```text
-Orders
-   ↓
-Payments
-   ↓
-Database
-```
-
-This gives a complete view of the request.
-
----
-
-# Service Endpoints
-
-```text
-Orders
-http://localhost:5002
-
-Payments
-http://localhost:4002
-
-Grafana
-http://localhost:3001
-
-Prometheus
-http://localhost:9090
-
-Jaeger
-http://localhost:16686
-
-Loki
-http://localhost:3100
-
-Alloy
-http://localhost:12345
-```
-
----
-
-# Key Concepts Demonstrated
-
-This project demonstrates:
-
-- Structured logging with Pino
-- Request IDs
-- Trace IDs
-- Span IDs
-- OpenTelemetry instrumentation
-- HTTP instrumentation
+- Application observability
+- Structured logging
+- Metrics
 - Distributed tracing
-- Trace context propagation
-- HTTP metrics
-- Request latency
-- Error metrics
+- OpenTelemetry
+- OTLP
+- OpenTelemetry Collector
+- Grafana Alloy
 - Prometheus
 - Loki
-- Grafana
-- Grafana Alloy
+- LogQL
+- PromQL
 - Jaeger
-- OpenTelemetry Collector
-- Service-to-service observability
-- Log/trace correlation
-- npm workspace monorepo
-- Shared reusable Node.js packages
+- Grafana
+- Trace ID propagation
+- Span relationships
+- Service-to-service tracing
+- Log and trace correlation
+- HTTP latency monitoring
+- Error monitoring
+- p95/p99 latency
+- Observability architecture
+- Monorepo-based reusable observability libraries
 
----
-
-# Goal of the Project
-
-The main objective is to demonstrate how a multi-service Node.js application can be made **observable end-to-end**.
-
-The expected flow is:
-
-```text
-                    USER REQUEST
-                         │
-                         ▼
-                ┌────────────────┐
-                │     Orders     │
-                └───────┬────────┘
-                        │
-                 trace context
-                        │
-                        ▼
-                ┌────────────────┐
-                │    Payments    │
-                └───────┬────────┘
-                        │
-                        ▼
-                   PostgreSQL
-
-
-        ┌───────────────┼────────────────┐
-        │               │                │
-        ▼               ▼                ▼
-      Logs           Metrics           Traces
-        │               │                │
-      Loki          Prometheus         Jaeger
-        │               │                │
-        └───────────────┼────────────────┘
-                        ▼
-                     Grafana
-```
-
-The end goal is to be able to answer:
-
-> **What happened to this request?**
-
-by following a single request across **services, logs, metrics, traces, and database operations**.
