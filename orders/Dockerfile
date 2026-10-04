@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 
 # Workspace package manifests
 COPY reusable/package.json ./reusable/package.json
-COPY payments/package.json ./payments/package.json
+COPY orders/package.json ./orders/package.json
 
 
 # Install dependencies
@@ -18,13 +18,13 @@ RUN npm ci
 
 # Copy source
 COPY reusable/ ./reusable/
-COPY payments/ ./payments/
+COPY orders/ ./orders/
 
 # Build reusable package first
 RUN npm run build --workspace=@node-observability/reusable
 
-# Build payments service
-RUN npm run build --workspace=payments
+# Build orders service
+RUN npm run build --workspace=orders
 
 
 # =========================
@@ -37,7 +37,7 @@ WORKDIR /app
 # Workspace manifests
 COPY package.json package-lock.json ./
 COPY reusable/package.json ./reusable/package.json
-COPY payments/package.json ./payments/package.json
+COPY orders/package.json ./orders/package.json
 
 
 # Production dependencies only
@@ -46,13 +46,13 @@ RUN npm ci --omit=dev
 # Compiled reusable package
 COPY --from=builder /app/reusable/dist ./reusable/dist
 
-# Compiled payments service
-COPY --from=builder /app/payments/dist ./payments/dist
+# Compiled orders service
+COPY --from=builder /app/orders/dist ./orders/dist
 
-WORKDIR /app/payments
+WORKDIR /app/orders
 
 USER node
 
-EXPOSE 3000
+EXPOSE 5000
 
 CMD ["npm", "start"]

@@ -151,7 +151,7 @@ app.get("/metrics", async (req, res) => {
   res.end(await register.metrics());
 });
 
-const PORT = 3000;
+const PORT = 5000;
 
 app.listen(PORT, () => {
   logger.info(
