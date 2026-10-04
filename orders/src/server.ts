@@ -3,15 +3,17 @@ import { createRequire } from "node:module";
 import { faker } from "@faker-js/faker";
 import { SpanStatusCode } from "@opentelemetry/api";
 
-import { logger } from "./logger.js";
-import { requestIdMiddleware } from "./middleware/request-id.js";
-import { metricsMiddleware } from "./middleware/metrics.js";
-import { register } from "./metrics/metrics.js";
-import { tracer } from "./tracing.js";
+import {
+  logger,
+  requestIdMiddleware,
+  metricsMiddleware,
+  register,
+  tracer,
+  httpLoggerMiddleware
+} from "@node-observability/reusable";
 
 const require = createRequire(import.meta.url);
 
-const pinoHttp = require("pino-http");
 
 const app = express();
 
@@ -21,11 +23,7 @@ app.use(express.json());
 app.use(requestIdMiddleware);
 
 // HTTP logging
-app.use(
-  pinoHttp({
-    logger,
-  })
-);
+app.use(httpLoggerMiddleware);
 
 // Prometheus metrics
 app.use(metricsMiddleware);
@@ -59,7 +57,7 @@ app.get("/users/:id", async (req, res) => {
         code: SpanStatusCode.ERROR,
         message: "Invalid user ID",
       });
-
+      // @ts-ignore
       req.log.error(
         {
           userId,
@@ -105,6 +103,47 @@ app.get("/users/:id", async (req, res) => {
   }
 });
 
+
+app.get("/create-order", async (req, res) => {
+  try {
+    const response = await fetch(
+      "http://node-payments:4000/payment-confirmation"
+    );
+
+    if (!response.ok) {
+      req.log.error(
+        {
+          statusCode: response.status
+        },
+        "Payment confirmation failed"
+      );
+
+      return res.status(502).json({
+        error: "Payment service failed"
+      });
+    }
+
+    const paymentConfirmation = await response.json();
+
+    res.status(200).json({
+      orderId: "ORD-12345",
+      status: "CREATED",
+      payment: paymentConfirmation
+    });
+  } catch (error) {
+    req.log.error(
+      {
+        error
+      },
+      "Failed to communicate with payment service"
+    );
+
+    res.status(503).json({
+      error: "Payment service unavailable"
+    });
+  }
+});
+
 // Prometheus metrics endpoint
 app.get("/metrics", async (req, res) => {
   res.set("Content-Type", register.contentType);
@@ -112,7 +151,7 @@ app.get("/metrics", async (req, res) => {
   res.end(await register.metrics());
 });
 
-const PORT = 3000;
+const PORT = 5000;
 
 app.listen(PORT, () => {
   logger.info(

@@ -1,32 +1,6 @@
 services:
 
   # ==========================================
-  # Node.js Application
-  # ==========================================
-  node-observability:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    image: node-observability:1.0
-    container_name: node-observability
-
-    ports:
-      - "3000:3000"
-
-    environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-
-    depends_on:
-      - otel-collector
-      - prometheus
-      - loki
-      - jaeger
-
-    restart: unless-stopped
-
-
-  # ==========================================
   # OpenTelemetry Collector
   # ==========================================
   otel-collector:
@@ -42,6 +16,9 @@ services:
     depends_on:
       - jaeger
 
+    networks:
+      - observability-network
+
     restart: unless-stopped
 
 
@@ -54,8 +31,9 @@ services:
 
     ports:
       - "16686:16686"
-      - "4317:4317"
-      - "4318:4318"
+
+    networks:
+      - observability-network
 
     restart: unless-stopped
 
@@ -76,6 +54,9 @@ services:
     ports:
       - "9090:9090"
 
+    networks:
+      - observability-network
+
     restart: unless-stopped
 
 
@@ -94,6 +75,9 @@ services:
 
     ports:
       - "3100:3100"
+
+    networks:
+      - observability-network
 
     restart: unless-stopped
 
@@ -120,6 +104,9 @@ services:
     depends_on:
       - loki
 
+    networks:
+      - observability-network
+
     restart: unless-stopped
 
 
@@ -138,4 +125,12 @@ services:
       - loki
       - jaeger
 
+    networks:
+      - observability-network
+
     restart: unless-stopped
+
+
+networks:
+  observability-network:
+    external: true

@@ -1,590 +1,385 @@
-# Node.js Observability Demo
+# Node.js Observability Platform
 
-A production-style Node.js observability demo covering the three core pillars of observability:
+A Node.js/TypeScript monorepo demonstrating **production-oriented observability** for multiple services using:
 
-- **Logs** — Pino
-- **Metrics** — Prometheus
-- **Traces** — OpenTelemetry + Jaeger
-- **Log aggregation** — Grafana Alloy + Loki
-- **Visualization** — Grafana
+- OpenTelemetry
+- Prometheus
+- Grafana
+- Loki
+- Grafana Alloy
+- Jaeger
+- Pino
+- PostgreSQL
 
-The project also demonstrates **trace correlation**, allowing logs and traces from the same request to be connected using `traceId` and `spanId`.
+The project demonstrates how **metrics, logs, and distributed traces** can be collected and correlated across multiple Node.js services.
 
 ---
 
 ## Architecture
 
 ```text
-                    Node.js Application
-                           |
-          +----------------+----------------+
-          |                |                |
-          v                v                v
-        Logs            Metrics           Traces
-          |                |                |
-        Pino          prom-client      OpenTelemetry
-          |                |                |
-          v                v                v
-     Grafana Alloy     Prometheus      OTel Collector
-          |                               |
-          v                               v
-         Loki                           Jaeger
-          |                |                |
-          +----------------+----------------+
-                           |
-                           v
-                        Grafana
+                         ┌──────────────────────┐
+                         │      Grafana          │
+                         │      :3001            │
+                         └──────────┬───────────┘
+                                    │
+                 ┌──────────────────┼──────────────────┐
+                 │                  │                  │
+                 ▼                  ▼                  ▼
+            Prometheus            Loki              Jaeger
+              :9090              :3100              :16686
+                 ▲                  ▲                  ▲
+                 │                  │                  │
+                 │               Alloy                │
+                 │              :12345                 │
+                 │                  ▲                  │
+                 │                  │                  │
+                 └──────────┬───────┴───────┬──────────┘
+                            │               │
+                            ▼               ▼
+                    ┌─────────────┐  ┌─────────────┐
+                    │    Orders   │  │  Payments   │
+                    │    :5000    │  │    :4000    │
+                    └──────┬──────┘  └──────┬──────┘
+                           │                 │
+                           └────────┬────────┘
+                                    │
+                           OpenTelemetry
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │  OTEL Collector     │
+                         │      :4317/:4318    │
+                         └─────────────────────┘
 ```
 
-### Observability flow
+---
 
-#### Logs
+# Observability Architecture
+
+The project follows the three major pillars of observability:
 
 ```text
-Node.js
-   |
- Pino
-   |
- stdout
-   |
-Grafana Alloy
-   |
- Loki
-   |
-Grafana
+                 Observability
+                      │
+          ┌───────────┼───────────┐
+          │           │           │
+        Logs       Metrics      Traces
+          │           │           │
+         Loki      Prometheus    Jaeger
+          │           │           │
+          └───────────┼───────────┘
+                      │
+                   Grafana
 ```
 
-#### Metrics
+## 1. Logs
 
-```text
-Node.js
-   |
-prom-client
-   |
-/metrics
-   |
-Prometheus
-   |
-Grafana
-```
-
-#### Traces
-
-```text
-Node.js
-   |
-OpenTelemetry
-   |
-OTLP HTTP
-   |
-OTel Collector
-   |
-OTLP gRPC
-   |
-Jaeger
-   |
-Grafana / Jaeger UI
-```
-
----
-
-# Technology Stack
-
-| Component | Purpose |
-|---|---|
-| Node.js | Application runtime |
-| TypeScript | Application development |
-| Express | HTTP API |
-| Pino | Structured logging |
-| OpenTelemetry | Distributed tracing |
-| OTel Collector | Telemetry collection and routing |
-| Prometheus | Metrics collection |
-| Grafana Alloy | Log collection |
-| Loki | Log aggregation |
-| Jaeger | Distributed tracing UI |
-| Grafana | Observability dashboard |
-| Docker Compose | Local environment orchestration |
-
----
-
-# Project Structure
-
-```text
-node-observability/
-│
-├── src/
-│   ├── server.ts
-│   ├── instrumentation.ts
-│   │
-│   ├── logger/
-│   │   └── logger.ts
-│   │
-│   ├── metrics/
-│   │   └── metrics.ts
-│   │
-│   ├── observability/
-│   │   └── trace-context.ts
-│   │
-│   └── middleware/
-│       ├── request-id.ts
-│       └── metrics.ts
-│
-├── otel-collector-config.yml
-├── prometheus.yml
-├── loki-config.yml
-├── alloy-config.alloy
-├── Dockerfile
-├── docker-compose.yml
-├── .dockerignore
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
----
-
-# 1. Prerequisites
-
-Install:
-
-- Node.js
-- npm
-- Docker Desktop
-- Git
-
-Verify:
-
-```bash
-node --version
-npm --version
-docker --version
-docker compose version
-```
-
----
-
-# 2. Install Dependencies
-
-Clone the repository:
-
-```bash
-git clone https://github.com/abhinavjalla/node-observability.git
-```
-
-Navigate into the project:
-
-```bash
-cd node-observability
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
----
-
-# 3. Run Locally Without Docker
-
-Build the TypeScript application:
-
-```bash
-npm run build
-```
-
-Start the application:
-
-```bash
-npm start
-```
-
-The application runs on:
-
-```text
-http://localhost:3000
-```
-
-For development:
-
-```bash
-npm run dev
-```
-
----
-
-# 4. Run the Complete Observability Stack
-
-The recommended way to run the complete demo is Docker Compose.
-
-Start all services:
-
-```bash
-docker compose up -d --build
-```
-
-Check running containers:
-
-```bash
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-```
-
-Stop everything:
-
-```bash
-docker compose down
-```
-
-Rebuild and start:
-
-```bash
-docker compose up -d --build
-```
-
----
-
-# 5. Services
-
-| Service | Purpose | URL |
-|---|---|---|
-| Node.js | Application API | http://localhost:3000 |
-| Prometheus | Metrics | http://localhost:9090 |
-| Grafana | Dashboard | http://localhost:3001 |
-| Jaeger | Traces | http://localhost:16686 |
-| Loki | Log aggregation | http://localhost:3100 |
-| Alloy | Log collection | http://localhost:12345 |
-
-The OpenTelemetry Collector is used internally by the application and does not need to expose its OTLP ports to the host.
-
----
-
-# 6. Docker Networking
-
-Inside Docker Compose, services communicate using **service names**, not `localhost`.
-
-For example:
-
-```text
-Node.js
-   |
-   | http://otel-collector:4318
-   v
-OTel Collector
-```
-
-Similarly:
-
-```text
-OTel Collector → jaeger:4317
-
-Alloy → loki:3100
-
-Grafana → prometheus:9090
-
-Grafana → loki:3100
-
-Grafana → jaeger:16686
-```
-
-`localhost` refers to the current container itself.
-
----
-
-# 7. Logging
-
-The application uses **Pino** for structured JSON logging.
+Application logs are generated using **Pino**.
 
 Example:
 
 ```json
 {
   "level": 30,
-  "time": 1760000000000,
-  "msg": "User request received",
-  "traceId": "abc123...",
-  "spanId": "def456..."
+  "msg": "Order created",
+  "traceId": "d63695cc92c8406f0205fe8d7aa467d4",
+  "spanId": "abc123",
+  "method": "POST",
+  "path": "/create-order"
 }
 ```
 
-The important fields are:
+Logs are collected by **Grafana Alloy** and forwarded to **Loki**.
 
-```text
-traceId
-spanId
+Grafana can then be used to search logs by:
+
+- service
+- HTTP method
+- endpoint
+- status code
+- trace ID
+- error
+- timestamp
+
+Example Loki query:
+
+```logql
+{job=~".+"}
+|= "d63695cc92c8406f0205fe8d7aa467d4"
 ```
-
-These allow logs to be correlated with distributed traces.
-
-### Log flow
-
-```text
-Node.js
-   |
- Pino
-   |
- stdout
-   |
-Grafana Alloy
-   |
- Loki
-   |
-Grafana
-```
-
-For containerized applications, writing logs to stdout is preferred over writing application logs to files inside the container.
 
 ---
 
-# 8. Metrics
+# 2. Metrics
 
-The application uses `prom-client` to expose application metrics.
+Application metrics are generated using OpenTelemetry/Prometheus-compatible instrumentation.
 
-Metrics endpoint:
-
-```text
-GET /metrics
-```
-
-Example:
+Typical HTTP metrics include:
 
 ```text
 http_requests_total
-http_request_errors_total
 http_request_duration_seconds
+http_request_errors_total
 ```
 
-Prometheus periodically scrapes this endpoint.
+Metrics provide information such as:
 
-```text
-Node.js
-   |
-   | GET /metrics
-   v
-Prometheus
-   |
-   v
-Grafana
+- request count
+- request rate
+- HTTP success rate
+- HTTP error rate
+- latency
+- p50 latency
+- p95 latency
+- p99 latency
+
+Prometheus stores and queries these metrics.
+
+Example:
+
+```promql
+rate(http_requests_total[5m])
+```
+
+For an individual service:
+
+```promql
+rate(http_requests_total{service_name="orders"}[5m])
 ```
 
 ---
 
-# 9. Useful Prometheus Queries
+# 3. Distributed Tracing
 
-### Request rate
+OpenTelemetry generates traces and spans for HTTP requests.
 
-```promql
-sum(rate(http_requests_total[1m]))
-```
-
-### Error rate
-
-```promql
-sum(rate(http_request_errors_total[1m]))
-```
-
-### Requests by endpoint
-
-```promql
-sum by (route) (
-  rate(http_requests_total[5m])
-)
-```
-
-### Requests by status code
-
-```promql
-sum by (status_code) (
-  rate(http_requests_total[5m])
-)
-```
-
-### P95 latency
-
-```promql
-histogram_quantile(
-  0.95,
-  sum by (le) (
-    rate(http_request_duration_seconds_bucket[5m])
-  )
-)
-```
-
----
-
-# 10. Distributed Tracing
-
-OpenTelemetry is used to generate distributed traces.
-
-The application exports traces using OTLP HTTP:
+For example:
 
 ```text
-Node.js
-   |
-   | OTLP HTTP
-   v
-OTel Collector
-   |
-   | OTLP gRPC
-   v
-Jaeger
+Client
+  │
+  │ POST /create-order
+  ▼
+Orders
+  │
+  │ HTTP request
+  │ traceId = d63695cc92c8406f0205fe8d7aa467d4
+  ▼
+Payments
+  │
+  ▼
+PostgreSQL
 ```
 
-The application uses:
+The important concept is that the same:
 
 ```text
-OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+traceId
 ```
 
-The important concept is that the Node.js application does not need to know where Jaeger is located.
-
-The OTel Collector acts as the telemetry gateway.
-
----
-
-# 11. Trace Correlation
-
-A request can generate:
-
-```text
-Trace
- └── Span
-      └── Application logs
-```
+can be propagated across service boundaries.
 
 Example:
 
 ```text
-Trace ID:
-abc123
+Orders
+traceId = d63695cc92c8406f0205fe8d7aa467d4
 
-Span ID:
-def456
+        │
+        ▼
+
+Payments
+traceId = d63695cc92c8406f0205fe8d7aa467d4
 ```
 
-The same `traceId` can appear in application logs.
+This allows a complete request to be investigated across services.
 
-This makes it possible to move from:
-
-```text
-Grafana → Log → traceId → Jaeger → Trace
-```
+Jaeger provides the trace visualization.
 
 ---
 
-# 12. Demo Request
+# Monorepo Structure
 
-Send a request:
+The project uses an npm workspace-based monorepo.
+
+```text
+node-observability/
+│
+├── package.json
+├── package-lock.json
+│
+├── reusable/
+│   ├── package.json
+│   ├── src/
+│   └── dist/
+│
+├── orders/
+│   ├── package.json
+│   ├── src/
+│   └── dist/
+│
+├── payments/
+│   ├── package.json
+│   ├── src/
+│   └── dist/
+│
+└── observability/
+    ├── prometheus/
+    ├── loki/
+    ├── alloy/
+    ├── otel-collector/
+    └── grafana/
+```
+
+## Workspace Concept
+
+The root `package.json` defines the workspaces:
+
+```json
+{
+  "workspaces": [
+    "reusable",
+    "orders",
+    "payments"
+  ]
+}
+```
+
+This allows the services to share common code through the reusable workspace.
+
+For example:
+
+```text
+                 @node-observability/reusable
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+           Orders                      Payments
+```
+
+Common observability functionality can live in the reusable package, such as:
+
+- Pino configuration
+- OpenTelemetry setup
+- request ID middleware
+- tracing utilities
+- metrics middleware
+- common logging utilities
+
+This avoids duplicating the same observability implementation in every service.
+
+---
+
+# Prerequisites
+
+Install:
+
+- Node.js 24+
+- npm
+- Git
+
+The observability stack requires the corresponding local container runtime.
+
+---
+
+# Install Dependencies
+
+From the repository root:
 
 ```bash
-curl http://localhost:3000/users/128
+npm ci
 ```
 
-Or with a request ID:
+Because this is an npm workspace monorepo, dependencies for the workspaces are installed from the root.
+
+---
+
+# Build the Project
+
+Build the reusable package first:
 
 ```bash
-curl -H "x-request-id: demo-request-123" \
-     http://localhost:3000/users/128
+npm run build --workspace=@node-observability/reusable
 ```
 
-This request generates:
-
-```text
-1 request
-   |
-   +---- Log
-   |
-   +---- Metrics
-   |
-   +---- Trace
-```
-
----
-
-# 13. Demo Walkthrough
-
-## Step 1 — Generate traffic
-
-Call:
+Build Orders:
 
 ```bash
-curl http://localhost:3000/users/128
+npm run build --workspace=orders
 ```
 
-Generate several requests:
+Build Payments:
 
 ```bash
-curl http://localhost:3000/users/128
-curl http://localhost:3000/users/129
-curl http://localhost:3000/users/130
+npm run build --workspace=payments
 ```
 
----
-
-## Step 2 — Check application logs
-
-Check:
+Or, if the root project provides a build script:
 
 ```bash
-docker logs node-observability
-```
-
-You should see structured JSON logs containing fields such as:
-
-```text
-traceId
-spanId
-method
-url
-statusCode
-responseTime
+npm run build
 ```
 
 ---
 
-## Step 3 — Check Prometheus
+# Running the Services
 
-Open:
+## Orders
+
+Orders runs on:
 
 ```text
-http://localhost:9090
+http://localhost:5002
 ```
 
-Try:
+Example:
 
-```promql
-http_requests_total
+```http
+POST http://localhost:5002/create-order
 ```
 
-Then:
+Example request:
 
-```promql
-rate(http_requests_total[1m])
+```json
+{
+  "productId": 10,
+  "quantity": 2,
+  "userId": 1001
+}
 ```
 
 ---
 
-## Step 4 — Check Jaeger
+## Payments
 
-Open:
-
-```text
-http://localhost:16686
-```
-
-Search for the Node.js service.
-
-Select a trace and inspect:
+Payments runs on:
 
 ```text
-Trace
- ├── HTTP request
- ├── Express processing
- └── Application spans
+http://localhost:4002
 ```
 
 ---
 
-## Step 5 — Check Grafana
+# Running the Observability Stack
+
+Start the observability infrastructure from the project's compose configuration.
+
+After startup, verify the running components.
+
+The main observability endpoints are:
+
+| Tool | URL | Purpose |
+|---|---|---|
+| Grafana | http://localhost:3001 | Visualization |
+| Prometheus | http://localhost:9090 | Metrics |
+| Jaeger | http://localhost:16686 | Distributed traces |
+| Loki | http://localhost:3100 | Logs |
+| Alloy | http://localhost:12345 | Telemetry collection |
+
+---
+
+# Grafana
 
 Open:
 
@@ -592,7 +387,9 @@ Open:
 http://localhost:3001
 ```
 
-Configure the following data sources:
+Grafana is the main visualization and investigation interface.
+
+It can connect to:
 
 ```text
 Prometheus
@@ -600,328 +397,363 @@ Loki
 Jaeger
 ```
 
-Grafana can then provide a unified observability view.
+This allows metrics, logs, and traces to be investigated from a common interface.
 
 ---
 
-# 14. Grafana Data Sources
+# Prometheus
 
-### Prometheus
-
-URL:
+Open:
 
 ```text
-http://prometheus:9090
+http://localhost:9090
 ```
 
-Used for:
+Prometheus stores application metrics.
+
+Example query:
+
+```promql
+rate(http_requests_total[5m])
+```
+
+Orders:
+
+```promql
+rate(http_requests_total{service_name="orders"}[5m])
+```
+
+HTTP error rate:
+
+```promql
+rate(http_request_errors_total[5m])
+```
+
+Latency can be analyzed using histogram metrics.
+
+Example:
+
+```promql
+histogram_quantile(
+  0.95,
+  rate(http_request_duration_seconds_bucket[5m])
+)
+```
+
+This represents approximately **p95 HTTP latency**.
+
+---
+
+# Loki
+
+Loki stores application logs.
+
+Logs are collected by Grafana Alloy and sent to Loki.
+
+Example query:
+
+```logql
+{job=~".+"}
+```
+
+Search for an endpoint:
+
+```logql
+{job=~".+"} |= "/create-order"
+```
+
+Search by trace ID:
+
+```logql
+{job=~".+"} |= "d63695cc92c8406f0205fe8d7aa467d4"
+```
+
+This is particularly useful for following one request across multiple services.
+
+---
+
+# Jaeger
+
+Open:
 
 ```text
-Metrics
+http://localhost:16686
 ```
 
-### Loki
+Jaeger provides distributed trace visualization.
 
-URL:
+A trace can look like:
 
 ```text
-http://loki:3100
+Trace
+│
+├── Orders
+│    └── POST /create-order
+│
+├── Payments
+│    └── POST /payment
+│
+└── PostgreSQL
+     └── database operation
 ```
 
-Used for:
+Each operation is represented as a span.
+
+The trace ID connects all spans belonging to the same distributed request.
+
+---
+
+# Trace Correlation
+
+One of the primary goals of this project is to correlate:
 
 ```text
 Logs
-```
-
-### Jaeger
-
-URL:
-
-```text
-http://jaeger:16686
-```
-
-Used for:
-
-```text
+  +
+Metrics
+  +
 Traces
 ```
 
----
+using a common request context.
 
-# 15. Dockerfile
-
-The project uses a multi-stage Docker build.
-
-```dockerfile
-# =========================
-# Build stage
-# =========================
-FROM node:24-alpine AS builder
-
-WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm ci
-
-COPY tsconfig.json ./
-COPY src ./src
-
-RUN npm run build
-
-
-# =========================
-# Production stage
-# =========================
-FROM node:24-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm ci --omit=dev && npm cache clean --force
-
-COPY --from=builder /app/dist ./dist
-
-USER node
-
-EXPOSE 3000
-
-CMD ["npm", "start"]
-```
-
-The build stage installs development dependencies such as TypeScript and compiles the application.
-
-The production stage contains only the compiled application and production dependencies.
-
----
-
-# 16. Docker Compose
-
-The complete environment contains:
+For example:
 
 ```text
-node-observability
-otel-collector
-prometheus
-jaeger
-loki
-alloy
-grafana
+traceId:
+d63695cc92c8406f0205fe8d7aa467d4
 ```
 
-Start:
+The same trace ID can appear in:
 
-```bash
-docker compose up -d --build
+```text
+Orders logs
+Payments logs
+Jaeger trace
 ```
+
+This makes it possible to start with an HTTP request and follow it through the entire system.
+
+Example investigation:
+
+```text
+POST /create-order
+        │
+        ▼
+     Orders
+        │
+        │ traceId
+        ▼
+    Payments
+        │
+        ▼
+   PostgreSQL
+```
+
+If the request is slow, the investigation can move from:
+
+```text
+Grafana
+   │
+   ├── Metrics → identify latency
+   │
+   ├── Loki → inspect application logs
+   │
+   └── Jaeger → identify slow span
+```
+
+---
+
+# OpenTelemetry Collector
+
+The OpenTelemetry Collector acts as the telemetry pipeline between applications and observability backends.
+
+```text
+Orders ─────┐
+            │
+Payments ───┤
+            ▼
+     OpenTelemetry
+        Collector
+            │
+       ┌────┼────┐
+       ▼    ▼    ▼
+    Jaeger  ...  Metrics/Logs
+```
+
+The application does not need to know the details of every backend.
+
+Instead:
+
+```text
+Application
+     │
+     ▼
+OpenTelemetry Collector
+     │
+     ├── Traces → Jaeger
+     ├── Metrics → Prometheus
+     └── Logs → Loki/Alloy pipeline
+```
+
+This provides a cleaner and more flexible observability architecture.
+
+---
+
+# Grafana Investigation Workflow
+
+A typical investigation starts with an HTTP request.
+
+### Step 1 — Generate traffic
+
+```http
+POST http://localhost:5002/create-order
+```
+
+### Step 2 — Check Metrics
+
+Open Grafana → Explore → Prometheus.
 
 Check:
 
-```bash
-docker compose ps
+```promql
+rate(http_requests_total{service_name="orders"}[5m])
 ```
 
-View application logs:
+### Step 3 — Check Logs
 
-```bash
-docker compose logs -f node-observability
+Open Grafana → Explore → Loki.
+
+Search:
+
+```logql
+{job=~".+"} |= "/create-order"
 ```
 
-View all logs:
+### Step 4 — Find Trace ID
 
-```bash
-docker compose logs -f
+From the log:
+
+```text
+traceId=d63695cc92c8406f0205fe8d7aa467d4
 ```
 
-Stop:
+Search Loki:
 
-```bash
-docker compose down
+```logql
+{job=~".+"} |= "d63695cc92c8406f0205fe8d7aa467d4"
 ```
+
+### Step 5 — Open the Trace
+
+Use the trace ID in Jaeger/Grafana to inspect:
+
+```text
+Orders
+   ↓
+Payments
+   ↓
+Database
+```
+
+This gives a complete view of the request.
 
 ---
 
-# 17. Troubleshooting
-
-## Check containers
-
-```bash
-docker compose ps
-```
-
-## Check application logs
-
-```bash
-docker compose logs node-observability
-```
-
-## Check OTel Collector
-
-```bash
-docker compose logs otel-collector
-```
-
-## Check Prometheus
-
-```bash
-docker compose logs prometheus
-```
-
-## Check Loki
-
-```bash
-docker compose logs loki
-```
-
-## Check Alloy
-
-```bash
-docker compose logs alloy
-```
-
-## Check Grafana
-
-```bash
-docker compose logs grafana
-```
-
----
-
-# 18. Common Docker Networking Mistake
-
-Do not configure:
+# Service Endpoints
 
 ```text
-http://localhost:4318
-```
+Orders
+http://localhost:5002
 
-inside the Node.js container.
+Payments
+http://localhost:4002
 
-Use:
+Grafana
+http://localhost:3001
 
-```text
-http://otel-collector:4318
-```
+Prometheus
+http://localhost:9090
 
-because `otel-collector` is the Compose service name.
+Jaeger
+http://localhost:16686
 
-Similarly, do not use:
-
-```text
+Loki
 http://localhost:3100
-```
 
-for Loki from another container.
-
-Use:
-
-```text
-http://loki:3100
+Alloy
+http://localhost:12345
 ```
 
 ---
 
-# 19. Observability Mental Model
+# Key Concepts Demonstrated
 
-Think about observability using three questions:
+This project demonstrates:
 
-### Logs
-
-> **What happened?**
-
-Example:
-
-```text
-User request failed
-statusCode: 500
-traceId: abc123
-```
-
-### Metrics
-
-> **How often is it happening?**
-
-Example:
-
-```text
-500 errors
-120 requests/sec
-P95 latency = 450ms
-```
-
-### Traces
-
-> **Where did the request spend its time or fail?**
-
-Example:
-
-```text
-API
- |
- +-- Authentication
- |
- +-- Database
- |
- +-- External API
-```
-
-### Correlation
-
-> **Which logs belong to this request?**
-
-Using:
-
-```text
-traceId
-spanId
-requestId
-```
+- Structured logging with Pino
+- Request IDs
+- Trace IDs
+- Span IDs
+- OpenTelemetry instrumentation
+- HTTP instrumentation
+- Distributed tracing
+- Trace context propagation
+- HTTP metrics
+- Request latency
+- Error metrics
+- Prometheus
+- Loki
+- Grafana
+- Grafana Alloy
+- Jaeger
+- OpenTelemetry Collector
+- Service-to-service observability
+- Log/trace correlation
+- npm workspace monorepo
+- Shared reusable Node.js packages
 
 ---
 
-# 20. Complete Architecture Summary
+# Goal of the Project
+
+The main objective is to demonstrate how a multi-service Node.js application can be made **observable end-to-end**.
+
+The expected flow is:
 
 ```text
-                    Node.js Application
-                           |
-          +----------------+----------------+
-          |                |                |
-          v                v                v
-        Logs            Metrics           Traces
-          |                |                |
-        Pino          prom-client      OpenTelemetry
-          |                |                |
-          v                v                v
-     Grafana Alloy     Prometheus      OTel Collector
-          |                               |
-          v                               v
-         Loki                           Jaeger
-          |                |                |
-          +----------------+----------------+
-                           |
-                           v
-                        Grafana
+                    USER REQUEST
+                         │
+                         ▼
+                ┌────────────────┐
+                │     Orders     │
+                └───────┬────────┘
+                        │
+                 trace context
+                        │
+                        ▼
+                ┌────────────────┐
+                │    Payments    │
+                └───────┬────────┘
+                        │
+                        ▼
+                   PostgreSQL
+
+
+        ┌───────────────┼────────────────┐
+        │               │                │
+        ▼               ▼                ▼
+      Logs           Metrics           Traces
+        │               │                │
+      Loki          Prometheus         Jaeger
+        │               │                │
+        └───────────────┼────────────────┘
+                        ▼
+                     Grafana
 ```
 
-The application produces three primary telemetry signals:
+The end goal is to be able to answer:
 
-```text
-                 Node.js
-                    |
-        +-----------+-----------+
-        |           |           |
-        v           v           v
-       Logs       Metrics     Traces
-        |           |           |
-       Loki     Prometheus    Jaeger
-        \           |           /
-         \          |          /
-          +---------+---------+
-                    |
-                 Grafana
-```
+> **What happened to this request?**
 
-This demonstrates how logs, metrics, and traces work together to provide a complete view of application behavior.
+by following a single request across **services, logs, metrics, traces, and database operations**.

@@ -1,0 +1,28 @@
+services:
+  orders:
+    build:
+      context: ..
+      dockerfile: orders/Dockerfile
+
+    image: node-orders:1.0
+    container_name: node-orders
+
+    ports:
+      - "5002:5000"
+
+    environment:
+      OTEL_SERVICE_NAME: orders
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+
+    labels:
+      observability.service_name: "node-orders"
+      observability.environment: "development"
+
+    networks:
+      - observability-network
+
+    restart: unless-stopped
+
+networks:
+  observability-network:
+    external: true
