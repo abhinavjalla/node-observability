@@ -333,17 +333,6 @@ Jaeger stores and provides access to distributed traces.
 http://localhost:16686/search
 ```
 
-### Demo flow
-
-1. Generate a request.
-2. Open Jaeger.
-3. Select the `orders` service.
-4. Find the latest trace.
-5. Open the trace.
-6. Show the Orders span.
-7. Show the Payments span.
-8. Explain the same Trace ID and different Span IDs.
-9. Show the duration of each operation.
 
 ---
 
@@ -358,6 +347,16 @@ Jaeger ──────┼──→ Grafana
              │
 Loki ────────┘
 ```
+
+
+ Grafana datasource configuration becomes:
+
+```text
+Grafana
+   │
+   ├── Prometheus → http://prometheus:9090
+   ├── Jaeger     → http://jaeger:16686
+   └── Loki       → http://loki:3100
 
 Grafana can query multiple observability backends from one UI.
 
@@ -513,6 +512,16 @@ http_requests_total{
 ## Total `/users/:id` requests in the last 24 hours
 
 ```promql
+100 *
+sum(
+  increase(
+    http_requests_total{
+      route="/users/:id",
+      status_code=~"2.."
+    }[24h]
+  )
+)
+/
 sum(
   increase(
     http_requests_total{
@@ -522,27 +531,25 @@ sum(
 )
 ```
 
-## Successful `/users/:id` requests in the last 24 hours
+
+
+## Failed request rate `/users/:id` requests in the last 24 hours
 
 ```promql
-sum(
-  increase(
-    http_requests_total{
-      route="/users/:id",
-      status_code=~"2.."
-    }[24h]
-  )
-)
-```
-
-## Failed `/users/:id` requests in the last 24 hours
-
-```promql
+100 *
 sum(
   increase(
     http_requests_total{
       route="/users/:id",
       status_code=~"4..|5.."
+    }[24h]
+  )
+)
+/
+sum(
+  increase(
+    http_requests_total{
+      route="/users/:id"
     }[24h]
   )
 )
@@ -678,6 +685,8 @@ These can be plotted together in Grafana.
 
 ---
 
+
+
 # 22. Grafana Dashboard
 
 The demo dashboard contains panels such as:
@@ -699,6 +708,8 @@ The demo dashboard contains panels such as:
 │                 Requests By Endpoint                     │
 └──────────────────────────────────────────────────────────┘
 ```
+
+
 
 Dashboard configuration:
 

@@ -21,7 +21,10 @@ export const httpRequestDuration = new client.Histogram({
     0.1,   // 100ms
     0.25,  // 250ms
     0.5,   // 500ms
-    1,     // 1 second
+    1, 
+    5,
+    10,
+    15  
   ],
 });
 
