@@ -707,7 +707,3 @@ Replace `TRACE_ID` with the actual trace ID.
 | Jaeger datasource from Grafana container | `http://jaeger:16686` |
 
 ---
-
-# 32. One-Line Demo Explanation
-
-> "We use OpenTelemetry to instrument our Node.js services and generate distributed traces, Prometheus to collect application metrics, Loki to aggregate logs, Jaeger to store and visualize traces, and Grafana as the unified visualization layer. Together, these allow us to move from a high-level system problem to the exact request, service, log, and root cause."
