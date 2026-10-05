@@ -4,19 +4,18 @@
   "metadata": {
     "name": "node-http-observability",
     "namespace": "default",
-    "uid": "0ac7d1f2-ed65-4c23-9b6a-85006c28e27b",
-    "resourceVersion": "1791175330673003",
-    "generation": 6,
-    "creationTimestamp": "2026-10-05T04:33:50Z",
+    "uid": "70ba871a-da59-42de-bad1-3403ea8af596",
+    "resourceVersion": "1791190000294983",
+    "generation": 7,
+    "creationTimestamp": "2026-10-05T08:37:55Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "3593308275720192"
+      "grafana.app/deprecatedInternalID": "3838930812067840"
     },
     "annotations": {
-      "grafana.app/createdBy": "user:fg07phlpkdnggf",
-      "grafana.app/message": "total\n",
+      "grafana.app/createdBy": "user:dg0aa3iibvri8d",
       "grafana.app/saved-from-ui": "Grafana v13.2.3 (90ffed056f)",
-      "grafana.app/updatedBy": "user:fg07phlpkdnggf",
-      "grafana.app/updatedTimestamp": "2026-10-05T04:42:10Z"
+      "grafana.app/updatedBy": "user:dg0aa3iibvri8d",
+      "grafana.app/updatedTimestamp": "2026-10-05T08:46:40Z"
     }
   },
   "spec": {
@@ -63,11 +62,12 @@
                       "group": "prometheus",
                       "version": "v0",
                       "datasource": {
-                        "name": "eg07wnhciwdtsf"
+                        "name": "cg0agzmqs4zcwf"
                       },
                       "spec": {
                         "editorMode": "code",
                         "expr": "sum(\r\n  increase(\r\n    http_requests_total{\r\n      route=\"/users/:id\"\r\n    }[24h]\r\n  )\r\n)",
+                        "instant": false,
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -146,11 +146,13 @@
                       "group": "prometheus",
                       "version": "v0",
                       "datasource": {
-                        "name": "eg07wnhciwdtsf"
+                        "name": "cg0agzmqs4zcwf"
                       },
                       "spec": {
                         "editorMode": "code",
                         "expr": "100 *\r\nsum(\r\n  increase(\r\n    http_requests_total{\r\n      route=\"/users/:id\",\r\n      status_code=~\"2..\"\r\n    }[24h]\r\n  )\r\n)\r\n/\r\nsum(\r\n  increase(\r\n    http_requests_total{\r\n      route=\"/users/:id\"\r\n    }[24h]\r\n  )\r\n)",
+                        "instant": false,
+                        "legendFormat": "__auto",
                         "range": true
                       }
                     },
@@ -196,11 +198,11 @@
                     "steps": [
                       {
                         "value": 0,
-                        "color": "green"
+                        "color": "red"
                       },
                       {
                         "value": 80,
-                        "color": "red"
+                        "color": "green"
                       }
                     ]
                   }
@@ -230,11 +232,13 @@
                       "group": "prometheus",
                       "version": "v0",
                       "datasource": {
-                        "name": "eg07wnhciwdtsf"
+                        "name": "cg0agzmqs4zcwf"
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "100 *\r\nsum(rate(http_requests_total{route=\"/users/:id\",status_code=~\"4..|5..\"}[24h]))\r\n/\r\nsum(rate(http_requests_total{route=\"/users/:id\"}[24h]))",
+                        "expr": "100 *\r\nsum(\r\n  increase(\r\n    http_requests_total{\r\n      route=\"/users/:id\",\r\n      status_code=~\"4..|5..\"\r\n    }[24h]\r\n  )\r\n)\r\n/\r\nsum(\r\n  increase(\r\n    http_requests_total{\r\n      route=\"/users/:id\"\r\n    }[24h]\r\n  )\r\n)",
+                        "instant": false,
+                        "legendFormat": "__auto",
                         "range": true
                       }
                     },
@@ -283,7 +287,7 @@
                         "color": "green"
                       },
                       {
-                        "value": 80,
+                        "value": 20,
                         "color": "red"
                       }
                     ]
